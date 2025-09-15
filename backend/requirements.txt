@@ -1,0 +1,7 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+pandas==2.2.2
+numpy==2.0.2
+openpyxl==3.1.5
+XlsxWriter==3.2.8
+gurobipy==11.0.3

@@ -1,10 +1,50 @@
-This repository contains a mixed integer linear programming (MILP) optimization model to schedule courses in the Department of Civil and Environmental Engineering at the University of Utah. The primary objective is to assign courses to available time slots while respecting prerequisites, corequisites, and other constraints such as slot preferences and lab-specific requirements.
+# CEE Scheduler Microservice + Desktop UI
 
-# Installation requirements
-1. Register for gurobi WLS license
-2. Install python 3.12
-3. Run pip install -r requirements.txt in the command prompt to install all the libraries
+FastAPI backend + Docker + PySide6 UI.
 
-# Running the program
-1. Run generate_preference.bat to generate the preference.xlsx.
-2. Run the scheduling_optimization.bat to optimize the schedule; the outputs will be in [semester]_schedule.xlsx
+## Backend (Docker)
+
+1. Build:
+```powershell
+docker build -t cee-scheduler-api -f backend/Dockerfile .
+```
+
+2. Run:
+```powershell
+docker run --rm -it `
+  -p 8000:8000 `
+  -v "${PWD}\data:/data" `
+  -e GRB_WLSACCESSID="YOUR_WLSACCESSID" `
+  -e GRB_WLSSECRET="YOUR_WLSSECRET" `
+  -e GRB_LICENSEID="YOUR_LICENSEID" `
+  cee-scheduler-api
+```
+
+Check: http://localhost:8000/health  
+Docs: http://localhost:8000/docs
+
+## UI (PySide6)
+
+Install and run locally:
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r ui\requirements.txt
+python ui\main.py
+```
+
+## Build a Windows .exe for the UI
+
+From Windows PowerShell:
+```powershell
+cd ui
+powershell -ExecutionPolicy Bypass -File .\build-win.ps1
+# exe will be at: ui\dist\CEE-Scheduler.exe
+```
+
+Options:
+```powershell
+.\build-win.ps1 -Console                 # show console window
+.\build-win.ps1 -Name "CEE-Scheduler-Dev"
+.\build-win.ps1 -Python "C:\Python311\python.exe"
+```
