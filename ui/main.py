@@ -1,24 +1,70 @@
 import sys
 import base64
+import json
 import requests
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFileDialog, QComboBox, QTableWidget, QTableWidgetItem, QMessageBox,
-    QCheckBox, QLineEdit, QHeaderView
+    QCheckBox, QLineEdit, QHeaderView, QTextEdit
 )
 
 API_URL_DEFAULT = "http://localhost:8000"
+
+
+class LogStreamThread(QThread):
+    line = Signal(str)          # emits each log line
+    finishedEvt = Signal(dict)  # emits final {"type":"done", ...} payload
+
+    def __init__(self, url: str, payload: dict):
+        super().__init__()
+        self.url = url
+        self.payload = payload
+
+    def run(self):
+        try:
+            with requests.post(
+                self.url,
+                json=self.payload,
+                stream=True,
+                headers={"Accept": "text/event-stream"}
+            ) as r:
+                r.raise_for_status()
+                # small chunk_size to avoid client-side buffering
+                for raw in r.iter_lines(chunk_size=1, decode_unicode=True):
+                    if raw is None:
+                        continue
+                    if raw.startswith(":"):  # heartbeat/comment
+                        continue
+                    if not raw.startswith("data:"):
+                        continue
+                    data = raw[len("data:"):].strip()
+                    if not data:
+                        continue
+                    try:
+                        obj = json.loads(data)
+                    except Exception:
+                        continue
+                    typ = obj.get("type")
+                    if typ == "log":
+                        self.line.emit(obj.get("text", ""))
+                    elif typ == "done":
+                        self.finishedEvt.emit(obj)
+                        break
+        except Exception as e:
+            self.finishedEvt.emit({"type": "done", "status": "error", "message": str(e)})
+
 
 class SchedulerUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("CEE Scheduler")
-        self.resize(980, 640)
+        self.resize(980, 720)
 
         self.offerings_path = ""
         self.input_data_path = ""
         self.current_schedule = []
+        self.stream_thread: LogStreamThread | None = None
 
         root = QVBoxLayout(self)
 
@@ -34,18 +80,18 @@ class SchedulerUI(QWidget):
         api_row.addWidget(self.health_btn)
 
         self.optimize_btn = QPushButton("Optimize")
-        self.optimize_btn.clicked.connect(self.run_opt)
+        self.optimize_btn.clicked.connect(self.run_opt)  # streaming
         api_row.addWidget(self.optimize_btn)
 
         root.addLayout(api_row)
 
-        # === Files Row: pick Excel files ===
+        # === Files Row ===
         file_row = QHBoxLayout()
-        self.offerings_btn = QPushButton("Pick Hx_Data_Offerings.xlsx")
+        self.offerings_btn = QPushButton("Load Offering Data (.xlsx)")
         self.offerings_btn.clicked.connect(self.pick_offerings)
         file_row.addWidget(self.offerings_btn)
 
-        self.input_btn = QPushButton("Pick input_data.xlsx")
+        self.input_btn = QPushButton("Load Input Data (.xlsx)")
         self.input_btn.clicked.connect(self.pick_input)
         file_row.addWidget(self.input_btn)
 
@@ -67,10 +113,21 @@ class SchedulerUI(QWidget):
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["Course", "Day", "Start", "End"])
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Stretch)  # equal width columns
+        header.setSectionResizeMode(QHeaderView.Stretch)
         root.addWidget(self.table)
 
-        # === Save Excel button ===
+        # === Optimization Log ===
+        log_label = QLabel("Optimization Log")
+        root.addWidget(log_label)
+
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setMinimumHeight(200)
+        self.log_text.setLineWrapMode(QTextEdit.NoWrap)
+        self.log_text.setStyleSheet("font-family: Consolas, 'Courier New', monospace; font-size: 12px;")
+        root.addWidget(self.log_text)
+
+        # === Save Excel ===
         self.save_btn = QPushButton("Save table to Excel...")
         self.save_btn.clicked.connect(self.save_excel)
         self.save_btn.setEnabled(False)
@@ -108,7 +165,6 @@ class SchedulerUI(QWidget):
             QMessageBox.warning(self, "Missing files", "Pick both Hx_Data_Offerings.xlsx and input_data.xlsx")
             return
 
-        # Map host path to container path (assumes ./data mounted to /data in Docker)
         def to_container_path(host_path):
             return "/data/" + host_path.split("/")[-1]
 
@@ -116,34 +172,61 @@ class SchedulerUI(QWidget):
             "plan_semester": self.semester.currentText(),
             "offerings_path": to_container_path(self.offerings_path),
             "input_data_path": to_container_path(self.input_data_path),
-            "output_excel_path": "/data/{}_Schedule.xlsx".format(self.semester.currentText()),
+            # Provide if you want the API to also write a file; else rely on return_excel_bytes
+            "output_excel_path": None,
             "return_excel_bytes": self.return_excel_chk.isChecked(),
         }
 
-        url = self.api_base() + "/optimize"
-        try:
-            r = requests.post(url, json=payload, timeout=600)
-            r.raise_for_status()
-            data = r.json()
-        except Exception as e:
-            QMessageBox.critical(self, "Request failed", f"{url}\n\n{e}")
+        # reset UI
+        self.log_text.clear()
+        self.table.setRowCount(0)
+        self.save_btn.setEnabled(False)
+        self.optimize_btn.setEnabled(False)
+        self.optimize_btn.setText("Optimizing...")
+
+        url = self.api_base() + "/optimize/stream"
+        self.stream_thread = LogStreamThread(url, payload)
+        self.stream_thread.line.connect(self._append_log_line)
+        self.stream_thread.finishedEvt.connect(self._stream_done)
+        self.stream_thread.finished.connect(self._stream_cleanup)
+        self.stream_thread.start()
+
+    def _append_log_line(self, text: str):
+        if not text:
+            return
+        self.log_text.append(text)
+        cursor = self.log_text.textCursor()
+        cursor.movePosition(cursor.End)
+        self.log_text.setTextCursor(cursor)
+
+    def _stream_done(self, result: dict):
+        if result.get("status") != "success":
+            msg = result.get("message", "Unknown error")
+            QMessageBox.warning(self, "Optimization error", msg)
             return
 
-        if data.get("status") != "success":
-            QMessageBox.warning(self, "Optimization error", data.get("message", "Unknown error"))
-            return
+        rows = result.get("rows")
+        if isinstance(rows, list) and rows:
+            self.current_schedule = rows
+            self.populate_table(rows)
+            self.save_btn.setEnabled(True)
 
-        schedule = data.get("schedule", [])
-        self.current_schedule = schedule
-        self.populate_table(schedule)
-        self.save_btn.setEnabled(True)
-
-        if data.get("excel_base64"):
+        excel_b64 = result.get("excel_base64")
+        if excel_b64:
             save_path, _ = QFileDialog.getSaveFileName(self, "Save returned Excel", "Optimal_Solution.xlsx", "Excel (*.xlsx)")
             if save_path:
-                with open(save_path, "wb") as f:
-                    f.write(base64.b64decode(data["excel_base64"]))
-                QMessageBox.information(self, "Saved", f"Excel written to:\n{save_path}")
+                try:
+                    with open(save_path, "wb") as f:
+                        f.write(base64.b64decode(excel_b64))
+                    QMessageBox.information(self, "Saved", f"Excel written to:\n{save_path}")
+                except Exception as e:
+                    QMessageBox.critical(self, "Save failed", str(e))
+
+        QMessageBox.information(self, "Done", "Optimization finished. See the log and table above.")
+
+    def _stream_cleanup(self):
+        self.optimize_btn.setEnabled(True)
+        self.optimize_btn.setText("Optimize")
 
     def populate_table(self, rows):
         self.table.setRowCount(len(rows))
@@ -157,11 +240,9 @@ class SchedulerUI(QWidget):
         if not self.current_schedule:
             return
         import pandas as pd
-
         save_path, _ = QFileDialog.getSaveFileName(self, "Save table to Excel", "Optimal_Solution.xlsx", "Excel (*.xlsx)")
         if not save_path:
             return
-
         try:
             df = pd.DataFrame(self.current_schedule)
             with pd.ExcelWriter(save_path, engine="xlsxwriter") as writer:
@@ -170,11 +251,13 @@ class SchedulerUI(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Save failed", str(e))
 
+
 def main():
     app = QApplication(sys.argv)
     ui = SchedulerUI()
     ui.show()
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()

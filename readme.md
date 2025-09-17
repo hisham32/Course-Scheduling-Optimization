@@ -1,16 +1,46 @@
 # CEE Scheduler Microservice + Desktop UI
 
-FastAPI backend + Docker + PySide6 UI.
+This repository contains a complete course scheduling system built for the Department of Civil and Environmental Engineering at the University of Utah.
+It uses an **Integer Programming model with Gurobi** to assign courses to time slots while respecting prerequisites, co-requisites, lab/discussion structures, and slot preferences.
+
+Backend: **FastAPI + Docker**
+UI: **PySide6 desktop app**
+
+---
 
 ## Backend (Docker)
 
-1. Build:
+### Using Docker Compose (recommended)
+
+1. Copy `.env.example` to `.env` and fill in your **Gurobi WLS credentials**:
+
+   ```env
+   GRB_WLSACCESSID=your-access-id
+   GRB_WLSSECRET=your-secret
+   GRB_LICENSEID=your-license-id
+   ```
+
+2. Start the API in production mode:
+
+   ```powershell
+   docker compose up api --build
+   ```
+
+   Or start in development mode (hot reload on code changes):
+
+   ```powershell
+   docker compose up api-dev --build
+   ```
+
+3. Check:
+
+   * Health: [http://localhost:8000/health](http://localhost:8000/health)
+   * API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+### Manual build/run (if you don't want compose)
+
 ```powershell
 docker build -t cee-scheduler-api -f backend/Dockerfile .
-```
-
-2. Run:
-```powershell
 docker run --rm -it `
   -p 8000:8000 `
   -v "${PWD}\data:/data" `
@@ -20,12 +50,12 @@ docker run --rm -it `
   cee-scheduler-api
 ```
 
-Check: http://localhost:8000/health  
-Docs: http://localhost:8000/docs
+---
 
 ## UI (PySide6)
 
-Install and run locally:
+### Run locally
+
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
@@ -33,18 +63,12 @@ pip install -r ui\requirements.txt
 python ui\main.py
 ```
 
-## Build a Windows .exe for the UI
+### Build a Windows .exe
 
-From Windows PowerShell:
+From PowerShell:
+
 ```powershell
 cd ui
 powershell -ExecutionPolicy Bypass -File .\build-win.ps1
 # exe will be at: ui\dist\CEE-Scheduler.exe
-```
-
-Options:
-```powershell
-.\build-win.ps1 -Console                 # show console window
-.\build-win.ps1 -Name "CEE-Scheduler-Dev"
-.\build-win.ps1 -Python "C:\Python311\python.exe"
 ```

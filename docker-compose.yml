@@ -1,16 +1,38 @@
 services:
-  scheduler-api:
+  api:
+    container_name: cee-scheduler-api
     build:
       context: .
       dockerfile: backend/Dockerfile
-    image: cee-scheduler-api:latest
-    container_name: cee-scheduler-api
+    command: >
+      uvicorn backend.app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --log-level info
     ports:
       - "8000:8000"
-    environment:
-      # GRB_WLSACCESSID: "YOUR_WLSACCESSID"
-      # GRB_WLSSECRET: "YOUR_WLSSECRET"
-      # GRB_LICENSEID: "YOUR_LICENSEID"
     volumes:
-      - ./data:/data:rw
+      - ./data:/data
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  api-dev:
+    container_name: cee-scheduler-api-dev
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: >
+      uvicorn backend.app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level debug
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./data:/data
+    env_file:
+      - .env
     restart: unless-stopped
