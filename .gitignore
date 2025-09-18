@@ -1,4 +1,4 @@
 # Ignore real env files
 .env
-.env.*
-!.env.example   # but keep the example file tracked
+# Do NOT ignore template
+!*.example
