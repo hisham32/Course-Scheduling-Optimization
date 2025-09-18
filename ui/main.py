@@ -87,11 +87,11 @@ class SchedulerUI(QWidget):
 
         # === Files Row ===
         file_row = QHBoxLayout()
-        self.offerings_btn = QPushButton("Load Offering Data (.xlsx)")
+        self.offerings_btn = QPushButton("Load Hx_Data_Offerings.xlsx")
         self.offerings_btn.clicked.connect(self.pick_offerings)
         file_row.addWidget(self.offerings_btn)
 
-        self.input_btn = QPushButton("Load Input Data (.xlsx)")
+        self.input_btn = QPushButton("Load input_data.xlsx")
         self.input_btn.clicked.connect(self.pick_input)
         file_row.addWidget(self.input_btn)
 
