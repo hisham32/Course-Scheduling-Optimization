@@ -49,6 +49,7 @@ docker run --rm -it `
   -e GRB_LICENSEID="YOUR_LICENSEID" `
   cee-scheduler-api
 ```
+### API example request
 ![](backend/API_screenshot.png)
 ---
 
@@ -72,4 +73,5 @@ cd ui
 powershell -ExecutionPolicy Bypass -File .\build-win.ps1
 # exe will be at: ui\dist\CEE-Scheduler.exe
 ```
+### Sample output from UI 
 ![](ui/UI_screenshot.png)
