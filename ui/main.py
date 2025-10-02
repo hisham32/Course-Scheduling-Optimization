@@ -104,7 +104,7 @@ class SchedulerUI(QWidget):
         opt_row.addWidget(QLabel("Semester:"))
         opt_row.addWidget(self.semester)
 
-        self.return_excel_chk = QCheckBox("Return Excel in response")
+        self.return_excel_chk = QCheckBox("Return optimized schedule in Excel")
         opt_row.addWidget(self.return_excel_chk)
         opt_row.addStretch(1)
         root.addLayout(opt_row)
@@ -127,11 +127,11 @@ class SchedulerUI(QWidget):
         self.log_text.setStyleSheet("font-family: Consolas, 'Courier New', monospace; font-size: 12px;")
         root.addWidget(self.log_text)
 
-        # === Save Excel ===
-        self.save_btn = QPushButton("Save table to Excel...")
-        self.save_btn.clicked.connect(self.save_excel)
-        self.save_btn.setEnabled(False)
-        root.addWidget(self.save_btn)
+        # # === Save Excel ===
+        # self.save_btn = QPushButton("Save table to Excel...")
+        # self.save_btn.clicked.connect(self.save_excel)
+        # self.save_btn.setEnabled(False)
+        # root.addWidget(self.save_btn)
 
     # ---------- UI Actions ----------
 
@@ -180,7 +180,7 @@ class SchedulerUI(QWidget):
         # reset UI
         self.log_text.clear()
         self.table.setRowCount(0)
-        self.save_btn.setEnabled(False)
+        # self.save_btn.setEnabled(False)
         self.optimize_btn.setEnabled(False)
         self.optimize_btn.setText("Optimizing...")
 
@@ -209,7 +209,7 @@ class SchedulerUI(QWidget):
         if isinstance(rows, list) and rows:
             self.current_schedule = rows
             self.populate_table(rows)
-            self.save_btn.setEnabled(True)
+            # self.save_btn.setEnabled(True)
 
         excel_b64 = result.get("excel_base64")
         if excel_b64:
@@ -236,20 +236,20 @@ class SchedulerUI(QWidget):
             self.table.setItem(i, 2, QTableWidgetItem(str(row.get("Start", ""))))
             self.table.setItem(i, 3, QTableWidgetItem(str(row.get("End", ""))))
 
-    def save_excel(self):
-        if not self.current_schedule:
-            return
-        import pandas as pd
-        save_path, _ = QFileDialog.getSaveFileName(self, "Save table to Excel", "Optimal_Solution.xlsx", "Excel (*.xlsx)")
-        if not save_path:
-            return
-        try:
-            df = pd.DataFrame(self.current_schedule)
-            with pd.ExcelWriter(save_path, engine="xlsxwriter") as writer:
-                df.to_excel(writer, sheet_name="Optimal_Solution", index=False)
-            QMessageBox.information(self, "Saved", f"Wrote {len(df)} rows to:\n{save_path}")
-        except Exception as e:
-            QMessageBox.critical(self, "Save failed", str(e))
+    # def save_excel(self):
+    #     if not self.current_schedule:
+    #         return
+    #     import pandas as pd
+    #     save_path, _ = QFileDialog.getSaveFileName(self, "Save table to Excel", "Optimal_Solution.xlsx", "Excel (*.xlsx)")
+    #     if not save_path:
+    #         return
+    #     try:
+    #         df = pd.DataFrame(self.current_schedule)
+    #         with pd.ExcelWriter(save_path, engine="xlsxwriter") as writer:
+    #             df.to_excel(writer, sheet_name="Optimal_Solution", index=False)
+    #         QMessageBox.information(self, "Saved", f"Wrote {len(df)} rows to:\n{save_path}")
+    #     except Exception as e:
+    #         QMessageBox.critical(self, "Save failed", str(e))
 
 
 def main():

@@ -66,11 +66,11 @@ def optimize_stream(req: OptimizeRequest):
       - {"type":"log","text":"..."} repeatedly
       - {"type":"done","status":"success","rows":[...], "excel_base64": "..."} once at end
     """
-    if not req.output_excel_path and not req.return_excel_bytes:
-        raise HTTPException(
-            status_code=400,
-            detail="You must either provide output_excel_path or set return_excel_bytes=True."
-        )
+    # if not req.output_excel_path and not req.return_excel_bytes:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail="You must either provide output_excel_path or set return_excel_bytes=True."
+    #     )
 
     # Truncate previous log BEFORE starting worker, to avoid tailing old content
     try:
