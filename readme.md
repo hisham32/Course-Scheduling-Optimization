@@ -49,7 +49,7 @@ docker run --rm -it `
   -e GRB_LICENSEID="YOUR_LICENSEID" `
   cee-scheduler-api
 ```
-
+![](backend/API_screenshot.png)
 ---
 
 ## UI (PySide6)
@@ -72,3 +72,4 @@ cd ui
 powershell -ExecutionPolicy Bypass -File .\build-win.ps1
 # exe will be at: ui\dist\CEE-Scheduler.exe
 ```
+![](ui/UI_screenshot.png)
