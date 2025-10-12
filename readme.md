@@ -1,6 +1,6 @@
 # CEE Scheduler Microservice + Desktop UI
 
-This repository contains a complete course scheduling system built for the Department of Civil and Environmental Engineering at the University of Utah.
+This repository contains a complete course scheduling optimization system built for the Department of Civil and Environmental Engineering at the University of Utah.
 It uses an **Integer Programming model with Gurobi** to assign courses to time slots while respecting prerequisites, co-requisites, lab/discussion structures, and slot preferences.
 
 Backend: **FastAPI + Docker**
