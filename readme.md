@@ -49,7 +49,7 @@ docker run --rm -it `
   -e GRB_LICENSEID="YOUR_LICENSEID" `
   cee-scheduler-api
 ```
-### API example request
+### API request example
 ![](backend/API_screenshot.png)
 ---
 
